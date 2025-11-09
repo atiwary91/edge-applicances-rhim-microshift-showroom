@@ -1,4 +1,8 @@
-= Module 2: Building the Self-Contained Appliance 
+= Module 2: Building the Self-Contained Appliance (v1)
+:page-nav-title: Build the Self-Contained Appliance
+:icons: font
+:source-highlighter: rouge
+:experimental:
 
 [#containerfile]
 == 2.1 Anatomy of a bootc Appliance Containerfile
@@ -14,13 +18,94 @@ Let’s take a quick look at the file used to build our base image.
 [source,sh,role=execute]
 ----
 cat Containerfile.base
-
 ----
++
+[%collapsible]
+====
+.Output of `$cat Containerfile.base`
+[source,bash]
+----
+FROM registry.redhat.io/rhel9-eus/rhel-9.6-bootc:9.6
+#FROM registry.distributed-ci.io/rhel9/rhel-bootc:9.6-1745774951
+ARG USHIFT_VER=4.19
+
+RUN . /etc/os-release && dnf upgrade -y --releasever="${VERSION_ID}" && \
+    dnf config-manager \
+        --set-enabled "rhocp-${USHIFT_VER}-for-rhel-9-$(uname -m)-rpms" \
+        --set-enabled "fast-datapath-for-rhel-9-$(uname -m)-rpms" && \
+    dnf install -y firewalld jq microshift microshift-release-info cockpit openscap-utils scap-security-guide && \
+    systemctl enable microshift && \
+    dnf clean all
+
+# Create a default 'redhat' user with the specified password.
+# Add it to the 'wheel' group to allow for running sudo commands.
+ARG USER_PASSWD
+RUN if [ -z "${USER_PASSWD}" ] ; then \
+        echo USER_PASSWD is a mandatory build argument && exit 1 ; \
+    fi
+
+RUN useradd -m -d /var/home/redhat -G wheel redhat && \
+    echo "redhat:${USER_PASSWD}" | chpasswd
+
+# Mandatory firewall configuration
+RUN firewall-offline-cmd --zone=public --add-port=22/tcp && \
+    firewall-offline-cmd --zone=trusted --add-source=10.42.0.0/16 && \
+    firewall-offline-cmd --zone=trusted --add-source=169.254.169.1 && \
+    firewall-offline-cmd --zone=trusted --add-source=fd01::/48
+    # Application-specific firewall configuration
+RUN firewall-offline-cmd --zone=public --add-port=80/tcp && \
+    firewall-offline-cmd --zone=public --add-port=443/tcp && \
+    firewall-offline-cmd --zone=public --add-port=30000-32767/tcp && \
+    firewall-offline-cmd --zone=public --add-port=30000-32767/udp
+
+# Create a systemd unit to recursively make the root filesystem subtree
+# shared as required by OVN images
+RUN cat > /etc/systemd/system/microshift-make-rshared.service <<'EOF'
+[Unit]
+Description=Make root filesystem shared
+Before=microshift.service
+ConditionVirtualization=container
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/mount --make-rshared /
+[Install]
+WantedBy=multi-user.target
+EOF
+
+RUN systemctl enable microshift-make-rshared.service
+
+COPY wordpress /usr/lib/microshift/manifests.d/wordpress
+
+RUN cat > /etc/sysctl.d/99-cis-hardening.conf <<'EOF'
+# IPv6 Settings
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_ra = 0
+net.ipv6.conf.default.accept_redirects = 0
+# IPv4 Settings
+net.ipv4.conf.all.log_martians = 1
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.all.secure_redirects = 0
+net.ipv4.conf.default.log_martians = 1
+net.ipv4.conf.default.secure_redirects = 0
+net.ipv4.ip_forward = 0
+# Ptrace Scope
+kernel.yama.ptrace_scope = 1
+EOF
+RUN echo "AllowUsers redhat" >> /etc/ssh/sshd_config
+# Run scan and hardening
+RUN oscap-im --profile xccdf_org.ssgproject.content_profile_cis /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
+# Run eval to check final result
+#RUN oscap xccdf eval --profile xccdf_org.ssgproject.content_profile_cis /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml || test $? = 2
+----
+====
 
 This shows how the base RHEL image is extended with MicroShift and supporting packages.
 
 [NOTE]
+====
 You don’t need to modify this file during the lab — this is just to understand what’s inside the appliance.
+====
 
 [#physically_bound]
 == 2.2 Creating “Physically-Bound” Images
@@ -39,12 +124,61 @@ Now let’s inspect the `v1` Containerfile that embeds the application container
 ----
 cat Containerfile.v1
 ----
++
+[%collapsible]
+====
+.Output of $cat Containerfile.v1
+----
+FROM localhost/microshift-4.19-bootc:latest
+
+ARG USHIFT_BASE_IMAGE_NAME
+ARG USHIFT_BASE_IMAGE_TAG
+#FROM $USHIFT_BASE_IMAGE_NAME:$USHIFT_BASE_IMAGE_TAG
+
+ENV IMAGE_STORAGE_DIR=/usr/lib/containers/storage
+ENV IMAGE_LIST_FILE=${IMAGE_STORAGE_DIR}/image-list.txt
+
+# use to embed application images
+COPY ./embed_image.sh /usr/bin/
+COPY ./copy_embedded_images.sh /usr/bin/
+
+ENV IMAGE_STORAGE_DIR=/usr/lib/containers/storage
+ENV IMAGE_LIST_FILE=${IMAGE_STORAGE_DIR}/image-list.txt
+
+# Pull the container images into /usr/lib/containers/storage:
+# - Each image goes into a separate sub-directory
+# - Sub-directories are named after the image reference string SHA
+# - An image list file maps image references to their name SHA
+# First for MicroShift payload
+RUN --mount=type=secret,id=pullsecret,dst=/run/secrets/pull-secret.json \
+    images="$(jq -r ".images[]" /usr/share/microshift/release/release-"$(uname -m)".json)" ; \
+    mkdir -p "${IMAGE_STORAGE_DIR}" ; \
+    for img in ${images} ; do \
+       /usr/bin/embed_image.sh ${img} --authfile /run/secrets/pull-secret.json ; \
+     done 
+# Then for Applications
+RUN --mount=type=secret,id=pullsecret,dst=/run/secrets/pull-secret.json <<PULL
+    /usr/bin/embed_image.sh docker.io/library/wordpress:6.2.1-apache
+    /usr/bin/embed_image.sh docker.io/library/mysql:8.0
+PULL
+
+# 
+
+RUN mkdir -p /etc/systemd/system/microshift.service.d
+RUN cat > /etc/systemd/system/microshift.service.d/microshift-copy-images.conf <<EOF
+[Service]
+ExecStartPre=/bin/bash /usr/bin/copy_embedded_images.sh
+EOF
+----
+====
 
 This file builds on the base image and adds the embedded container images that will be used during MicroShift startup.
 
 [NOTE]
+====
 You’ll also notice helper scripts in the repository that copy container images into the image during build time.  
 These ensure the system can run fully offline.
+====
 
 [#build]
 == 2.3 Hands-On: Build the Base and v1 Images
@@ -57,8 +191,22 @@ Before running them, you may want to quickly look at the scripts to understand w
 [source,sh,role=execute]
 ----
 cat build-base.sh
-
 ----
++
+[%collapsible]
+====
+.Build script: `build-base.sh` (output of `cat build-base.sh`)
+[source,bash]
+----
+PULL_SECRET=.pull-secret.json
+USER_PASSWD=redhat02
+IMAGE_NAME=microshift-4.19-bootc
+
+podman build --authfile "${PULL_SECRET}" -t "${IMAGE_NAME}" \
+    --build-arg USER_PASSWD="${USER_PASSWD}" \
+    -f Containerfile.base
+----
+====
 
 . Build the base image:
 +
@@ -73,6 +221,50 @@ bash -x build-base.sh
 ----
 cat build.sh
 ----
++
+[%collapsible]
+====
+.Build script: `build.sh` (output of `cat build.sh`)
+[source,bash]
+----
+#!/bin/bash
+set -e
+
+PULL_SECRET=.pull-secret.json
+IMAGE_NAME=microshift-4.19-bootc-embeeded
+REGISTRY_URL=quay.io
+TAG=$1
+
+if [ -z "$TAG" ]; then
+    echo "Error: a tag must be provided."
+    echo "Usage: $0 <tag>"
+    exit 1
+fi
+
+REGISTRY_IMG="rhn_support_arolivei/${IMAGE_NAME}"
+BASE_IMAGE_NAME=microshift-4.19-bootc:v2
+
+echo "#### Building a new bootc image with MicroShift and application Container images embeeded to it"
+podman build --authfile "${PULL_SECRET}" -t "${IMAGE_NAME}:${TAG}" \
+    --secret "id=pullsecret,src=${PULL_SECRET}" \
+    --build-arg USHIFT_BASE_IMAGE_NAME="${BASE_IMAGE_NAME}" \
+    --build-arg USHIFT_BASE_IMAGE_TAG=${TAG} \
+    -f Containerfile.${TAG}
+
+echo "#### pushing bootc image to a registry"
+podman push "localhost/${IMAGE_NAME}:${TAG}" "${REGISTRY_URL}/${REGISTRY_IMG}:${TAG}"
+
+echo "#### creating ISO from bootc image"
+podman run --authfile "${PULL_SECRET}" --rm -it --privileged \
+    --security-opt label=type:unconfined_t \
+    -v /var/lib/containers/storage:/var/lib/containers/storage \
+    -v ./output:/output \
+    registry.redhat.io/rhel9/bootc-image-builder:latest \
+    --local \
+    --type iso \
+    "localhost/${IMAGE_NAME}:${TAG}"
+----
+====
 
 . Build the v1 appliance image (this produces the bootable ISO):
 +
@@ -84,11 +276,12 @@ bash -x build.sh v1
 When the build completes, the ISO will appear in the `_build/` directory.
 
 [NOTE]
+====
 This ISO contains the OS, MicroShift, and all embedded container images — ready to run in an offline or air-gapped environment.
+====
 
 == 2.4 What happens next
 Once installed on the target VM:
-
 * The embedded container images are already available locally.
 * Before MicroShift starts, these images are added to the running system.
 * MicroShift then starts and launches your applications without needing any external registry.
