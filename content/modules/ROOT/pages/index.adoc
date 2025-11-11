@@ -1,25 +1,59 @@
 = Building Self-contained Appliances with RHEL Image Mode and MicroShift
 
-Welcome to a hands-on lab that will fundamentally change how you build, deliver, and manage your software appliances.
+Welcome to a hands-on lab focused on the modern appliance experience.
 
-If you're a partner or customer building appliances, you know the challenges: configuration drift, complex update mechanisms, disconnected environments, and the constant pressure to enhance security while accelerating time-to-market.
+Our link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 - Unleashing The Power of Image Mode for RHEL] lab introduced the foundational technology to treat the OS as an image. 
 
-This lab introduces the solution. You will learn how to use Red Hat Enterprise Linux (RHEL) Image Mode (bootc) and MicroShift to treat your entire appliance—the OS, your applications, and its configuration—as a single, atomic, and version-controlled unit.
+That lab introduced the technology, but it's important to understand the primary use cases. RHEL Image Mode evolved from technologies like link:https://www.redhat.com/en/blog/red-hat-device-edge-rpm-ostree-updates[rpm-ostree], making it a natural fit for appliances, edge devices, and container hosts where image-based operations are already common.
 
-image::redhat-image-mode.jpg[redhat-image-mode,80%,80%]
+The goal of Image Mode is to bring these benefits to general-purpose RHEL. It excels in scenarios that require tightly coupling an application and its OS as a single, version-controlled package. For example, modern AI/ML workloads often have strict dependencies on specific firmware and driver versions, making an image-based approach ideal for ensuring consistency.
+
+image::use-cases.jpg[use-cases,100%,100%]
+
+This lab takes the next logical step: building a true cloud-native appliance.
+
+If you build or manage software appliances—especially for edge or disconnected environments—you face constant challenges: 
+
+image::challenges.jpg[challenges,100%,100%]
+
+RHEL Image Mode directly addresses these OS-level challenges for edge appliances:
+
+- **Image-based updates**: Provide increased reliability over the life of the system.
+
+- **Rollbacks**: The A/B boot model means fast recoveries in the case of unforeseen issues.
+
+- **Updates at scale**: Control OS and application container versioning through industry-standard registries and tags.
+
+- **Support for air-gapped and DIL environments**: Enables reliable operations even when registries are unavailable, allowing for updates via file or ISO-based methods.
+
+These OS-level solutions are excellent, but they become even more complex when your goal is to run cloud-native applications. How do you provide a consistent Kubernetes experience for teams, but on hardware that is space-constrained, low-power, or offline?
+
+This is where link:https://www.redhat.com/en/topics/edge-computing/microshift[Red Hat build of MicroShift] comes in. It is a lightweight Kubernetes distribution derived from link:https://www.redhat.com/en/technologies/cloud-computing/openshift/edge-computing[Red Hat® OpenShift®], designed specifically for these exact edge and small-footprint appliance use cases. It provides a consistent, enterprise-grade Kubernetes platform without the overhead of a full cluster.
+
+This lab leverage what we learned about Image Mode through link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 - Unleashing The Power of Image Mode for RHEL], and moves beyond with focus for **Edge Appliances**. You will learn how to build a true, self-contained appliance by embedding Red Hat build of MicroShift and your applications directly into the OS image—using "physically-bound images" to create an appliance ready **for disconnected edge deployments**.
 
 == Revolutionize Your Appliance Lifecycle
 
-By adopting an image-based approach, you can directly:
+By treating your entire appliance as a bootable container image, you can fundamentally change your development and operations:
 
-* **Accelerate Time-to-Market:** Use standard DevOps/CI/CD practices for the *entire* OS and application stack, dramatically speeding up development and delivery.  
+* **Accelerate Time-to-Market:** Use standard DevOps/CI/CD practices for the *entire* OS and application stack, dramatically speeding up development and delivery.
 * **Simplify Appliance Creation:** Combine the OS, drivers, and your applications into a single, manageable unit.  
-* **Streamline Field Operations:** Deliver "smartphone-like" reliability with fully atomic, image-based updates and fast, safe rollbacks.  
+
+image::redhat-image-mode.jpg[redhat-image-mode,100%,100%]
+
+* **Streamline Field Operations:** Deliver "smartphone-like" reliability with fully atomic, image-based updates and fast, safe rollbacks.
+
+image::updates.jpg[updates,100%,100%]
+
 * **Enable Disconnected Deployments:** Ship truly self-contained, "physically-bound" images for air-gapped or offline environments by embedding application containers directly into the OS image.  
+
+image::disconnected.jpg[disconnected-workflow,100%,100%]
+
 * **Enhance Security:** Radically reduce your appliance's attack surface and eliminate configuration drift with immutable system images.  
 * **Manage Fleets at Scale:** Control OS and application versions consistently using standard container registries and tags.
 
 image::disconnected.jpg[disconnected-workflow,100%,100%]
+
 
 == What you will learn
 
