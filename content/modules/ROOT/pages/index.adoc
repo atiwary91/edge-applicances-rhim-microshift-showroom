@@ -52,7 +52,7 @@ image::disconnected.jpg[disconnected-workflow,100%,100%]
 * **Enhance Security:** Radically reduce your appliance's attack surface and eliminate configuration drift with immutable system images.  
 * **Manage Fleets at Scale:** Control OS and application versions consistently using standard container registries and tags.
 
-image::disconnected.jpg[disconnected-workflow,100%,100%]
+image::manage-fleet.jpg[manage-fleet.jpg,100%,100%]
 
 
 == What you will learn
