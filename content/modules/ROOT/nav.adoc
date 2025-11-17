@@ -26,4 +26,5 @@
 
 * xref:module-05.adoc[5. Conclusion]
 ** xref:module-05.adoc#recap[Recap]
-** xref:module-05.adoc#resources[Resources]
+** xref:module-05.adoc#resources[Resources & Documentation]
+** xref:module-05.adoc#qa[Q&A]

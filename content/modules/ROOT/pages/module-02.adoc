@@ -379,6 +379,7 @@ If any of these are missing, review the build logs (`build-base.log` and `build-
 
 == 2.4 What happens next
 Once installed on the target VM:
+
 * The embedded container images are already available locally.
 * Before MicroShift starts, these images are added to the running system.
 * MicroShift then starts and launches your applications without needing any external registry.
