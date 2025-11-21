@@ -8,20 +8,38 @@
 By the end of this module, you will be able to:
 
 * Understand the structure of a bootc Containerfile and how it extends a base RHEL image
-* Explain how physically-bound images embed container images for disconnected operation
-* Build a base RHEL image with MicroShift using podman
+* Explain why EUS (Extended Update Support) images are used for appliances
+* Explain why `redhat.repo` (or equivalent) is embedded in the base image
+* Explain physically-bound images and how container images are embedded immutably
+* Understand why embedded images are placed under `/usr/lib` rather than `/var`
+* Build a base RHEL image with MicroShift using Podman
 * Build a self-contained appliance image with embedded applications
-* Generate a bootable ISO from a container image using bootc-image-builder
+* Generate a bootable ISO from a container image using the bootc-image-builder
 
 [#containerfile]
 == 2.1 Anatomy of a bootc Appliance Containerfile
 A `Containerfile` is the recipe for your appliance. It defines:
 
-* The base OS (RHEL)
-* MicroShift components
-* Tools the appliance needs
+* The base OS (RHEL bootc base)
+* MicroShift components and required RPMs
+* System configuration, firewall, and hardening
+* Embedded manifests (Quadlets) and application images
+* Scripts or units to import embedded images at runtime
 
-Let's take a quick look at the file used to build our base image, which is inspired by downstream MicroShift link:https://docs.redhat.com/en/documentation/red_hat_build_of_microshift/4.19/html/installing_with_image_mode_for_rhel/installing-a-bootc-image-and-publishing-to-a-registry#microshift-install-bootc-build-image_microshift-install-bootc-image[documentation]. For more information on building bootc images, see link:https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html-single/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/index#building-bootc-images_using-image-mode-for-rhel[Building bootc images].
+=== Why use EUS (Extended Update Support)?
+We choose **EUS** images for appliances because they provide:
+* Long lifecycle stability (fewer, predictable changes)
+* A predictable minor release stream (helpful for validated appliances)
+* A better platform match for long-running edge/industrial deployments
+
+Appliances typically prefer stability and predictability over the fastest-moving release.
+
+=== Why embed `redhat.repo` (or repo metadata) into the image?
+`bootc-image-builder` and container-based builds use `dnf` within the image build. To ensure `dnf` can resolve packages during build, the base image must contain repo metadata (for example `/etc/yum.repos.d/redhat.repo`). Embedding the repo file inside the base ensures that:
+
+* Builds are reproducible (the same repos used each time).
+* `dnf` can perform package installs during the container build step.
+* The image builder has the correct subscription/repo context.
 
 . View the `Containerfile` for the base image:
 +
@@ -48,28 +66,18 @@ RUN dnf install -y --releasever="${VERSION_ID}" firewalld jq microshift microshi
     dnf clean all
 
 # Create a default 'redhat' user with the specified password.
-# Add it to the 'wheel' group to allow for running sudo commands.
 ARG USER_PASSWD
-RUN if [ -z "${USER_PASSWD}" ] ; then \
-        echo USER_PASSWD is a mandatory build argument && exit 1 ; \
-    fi
-
 RUN useradd -m -d /var/home/redhat -G wheel redhat && \
     echo "redhat:${USER_PASSWD}" | chpasswd
 
-# Mandatory firewall configuration
+# Mandatory firewall configuration (example)
 RUN firewall-offline-cmd --zone=public --add-port=22/tcp && \
-    firewall-offline-cmd --zone=trusted --add-source=10.42.0.0/16 && \
-    firewall-offline-cmd --zone=trusted --add-source=169.254.169.1 && \
-    firewall-offline-cmd --zone=trusted --add-source=fd01::/48
-    # Application-specific firewall configuration
-RUN firewall-offline-cmd --zone=public --add-port=80/tcp && \
+    firewall-offline-cmd --zone=public --add-port=80/tcp && \
     firewall-offline-cmd --zone=public --add-port=443/tcp && \
     firewall-offline-cmd --zone=public --add-port=30000-32767/tcp && \
     firewall-offline-cmd --zone=public --add-port=30000-32767/udp
 
-# Create a systemd unit to recursively make the root filesystem subtree
-# shared as required by OVN images
+# systemd unit example
 RUN cat > /etc/systemd/system/microshift-make-rshared.service <<'EOF'
 [Unit]
 Description=Make root filesystem shared
@@ -86,49 +94,87 @@ RUN systemctl enable microshift-make-rshared.service
 
 COPY wordpress /usr/lib/microshift/manifests.d/wordpress
 
-## Apply kernel tuning for CIS hardening compliance
+# CIS hardening example
 RUN cat > /etc/sysctl.d/99-cis-hardening.conf <<'EOF'
-# IPv6 Settings
-net.ipv6.conf.all.accept_ra = 0
-net.ipv6.conf.all.accept_redirects = 0
-net.ipv6.conf.default.accept_ra = 0
-net.ipv6.conf.default.accept_redirects = 0
-# IPv4 Settings
-net.ipv4.conf.all.log_martians = 1
-net.ipv4.conf.all.rp_filter = 1
-net.ipv4.conf.all.secure_redirects = 0
-net.ipv4.conf.default.log_martians = 1
-net.ipv4.conf.default.secure_redirects = 0
-net.ipv4.ip_forward = 0
-# Ptrace Scope
-kernel.yama.ptrace_scope = 1
+# IPv6 and IPv4 hardening values...
 EOF
-RUN echo "AllowUsers redhat" >> /etc/ssh/sshd_config
-# Run scan and hardening
-RUN oscap-im --profile xccdf_org.ssgproject.content_profile_cis /usr/share/xml/scap/ssg/content/ssg-rhel9-ds.xml
 ----
 ====
 
-This shows how the base RHEL image is extended with MicroShift and supporting packages.
+This Containerfile extends the RHEL EUS bootc base image, installs MicroShift, configures firewall rules, applies CIS hardening, and places manifests for MicroShift.
 
 [NOTE]
 ====
-You don’t need to modify this file during the lab — this is just to understand what’s inside the appliance.
+You don’t need to edit `Containerfile.base` for this lab — we show it so you understand what’s being installed into the appliance.
 ====
 
 [#physically_bound]
 == 2.2 Creating “Physically-Bound” Images
-A physically-bound image contains everything the appliance needs to run — **including the application container images**.
+A **physically-bound** image contains everything needed to run: the OS, MicroShift, application container images, and any Quadlets/manifests. This enables **true offline operation**.
 
-This allows the system to:
+Benefits:
+* Boot and run applications without any internet access
+* MicroShift can start and immediately use local images
+* Deterministic appliances that match exactly what you validated
 
-* Boot and run apps with **no internet connection**
-* Start MicroShift with pre-embedded containers
-* Run workloads immediately after boot
+=== The immutability reason: `/usr` vs `/var`
+Under Image Mode the root filesystem is treated as read-only at runtime. Key points:
 
-Now let’s inspect the `v1` Containerfile that embeds the application containers.
+* `/usr` — written during the build process, becomes part of the image and is versioned with the OS.
+* `/var` — runtime data store; mutable and not intended to be the place for versioned, build-time assets.
 
-. View the `Containerfile` for the v1 appliance:
+Storing embedded images under `/usr/lib/...` makes them part of the immutable image and ensures:
+* Images are versioned together with the OS image
+* They are upgrade-safe and roll back with the OS
+* They cannot be accidentally mutated at runtime
+
+If we stored them in `/var`, they would not be tied to the OS image lifecycle and could drift.
+
+=== How physical embedding works (concept + commands)
+We embed images using `skopeo` and the `dir:` transport during the **build**.
+
+*Embed into a directory inside the image (build time):*
+
+[source,bash]
+----
+RUN skopeo copy --preserve-digests docker://registry.example.com/my-app:1.0 \
+    dir:/usr/lib/containers-image-cache/my-app-1.0
+----
+
+This creates a directory that contains the image content and preserves digests so references by SHA still work.
+
+*At runtime (first boot or ExecStartPre), import into Podman’s mutable store:*
+
+[source,bash]
+----
+/usr/bin/skopeo copy --preserve-digests \
+    dir:/usr/lib/containers-image-cache/my-app-1.0 \
+    containers-storage:registry.example.com/my-app@sha256:<digest>
+----
+
+This loads the embedded data into the Podman storage so MicroShift (or kubelet/container runtimes) can reference the image by name or digest.
+
+=== Why `dir:` transport?
+* `dir:` allows bundling multiple images under one directory.
+* It preserves image digests (crucial for referencing by SHA).
+* It’s file-system friendly and portable within the ISO.
+
+=== Why not use a secondary image store?
+A secondary store is not replaced during an OS upgrade. Embedded images *change with each OS image* and must live inside that OS image to be versioned and rolled back together. That’s why we place them under `/usr/lib`.
+
+=== Helper scripts (what they do)
+This repo includes two helper scripts you’ll see and can inspect:
+
+* `embed_image.sh` — used during the Containerfile build to `skopeo copy` an image into the `/usr/lib/...` dir.  
+  - Usage: `embed_image.sh <image-reference> [--all] [--authfile ...]`  
+  - If referencing a manifest list by digest, use `--all` so `skopeo` copies the whole manifest list and ALL variant images.
+
+* `copy_embedded_images.sh` — invoked at boot (via a systemd ExecStartPre) to copy all embedded `dir:` images into the Podman container store (containers-storage), making them available to MicroShift.
+
+Upstream example / reference for patterns:
+link:https://gitlab.com/fedora/bootc/examples/-/tree/main/physically-bound-images[physically-bound-images examples].
+
+. View the `Containerfile` for the v1 appliance (embedding step):
 +
 [source,sh,role=execute]
 ----
@@ -137,9 +183,8 @@ cat Containerfile.v1
 +
 [%collapsible]
 ====
-.Output of $cat Containerfile.v1
+.Output of `$cat Containerfile.v1`
 [source,dockerfile]
-
 ----
 FROM localhost/microshift-4.19-bootc:latest
 
@@ -149,32 +194,25 @@ ARG USHIFT_BASE_IMAGE_TAG
 ENV IMAGE_STORAGE_DIR=/usr/lib/containers/storage
 ENV IMAGE_LIST_FILE=${IMAGE_STORAGE_DIR}/image-list.txt
 
-# use to embed application images
+# helper scripts (bundled into image)
 COPY ./embed_image.sh /usr/bin/
 COPY ./copy_embedded_images.sh /usr/bin/
 
-ENV IMAGE_STORAGE_DIR=/usr/lib/containers/storage
-ENV IMAGE_LIST_FILE=${IMAGE_STORAGE_DIR}/image-list.txt
-
-# Pull the container images into /usr/lib/containers/storage:
-# - Each image goes into a separate sub-directory
-# - Sub-directories are named after the image reference string SHA
-# - An image list file maps image references to their name SHA
-# First for MicroShift payload
+# Embed MicroShift payload images (example)
 RUN --mount=type=secret,id=pullsecret,dst=/run/secrets/pull-secret.json \
     images="$(jq -r ".images[]" /usr/share/microshift/release/release-"$(uname -m)".json)" ; \
     mkdir -p "${IMAGE_STORAGE_DIR}" ; \
     for img in ${images} ; do \
        /usr/bin/embed_image.sh ${img} --authfile /run/secrets/pull-secret.json ; \
      done 
-# Then for Applications
+
+# Embed application images
 RUN --mount=type=secret,id=pullsecret,dst=/run/secrets/pull-secret.json <<PULL
     /usr/bin/embed_image.sh docker.io/library/wordpress:6.2.1-apache
     /usr/bin/embed_image.sh docker.io/library/mysql:8.0
 PULL
 
-# 
-
+# At runtime, a systemd drop-in triggers copy_embedded_images.sh
 RUN mkdir -p /etc/systemd/system/microshift.service.d
 RUN cat > /etc/systemd/system/microshift.service.d/microshift-copy-images.conf <<EOF
 [Service]
@@ -183,24 +221,9 @@ EOF
 ----
 ====
 
-This file builds on the base image and adds the embedded container images that will be used during MicroShift startup.
-
-[NOTE]
-====
-You'll also notice helper scripts in the repository that copy container images into the image during build time.  
-These ensure the system can run fully offline.
-====
-
-[NOTE]
-====
-**Layered vs. Fresh Images:** This workshop demonstrates building layered images (RHEL base → MicroShift base → embedded v1 → embedded v2) for faster incremental builds. However, `bootc switch` does not require layered images—you can build and switch to completely fresh, independent images built directly from the RHEL base. Building fresh images for each version can help manage image sizes, as each image contains only the necessary components without accumulating redundant data from previous layers. For more information, see link:https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html-single/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/index#managing-bootc-updates_using-image-mode-for-rhel[Managing bootc updates].
-====
-
 [#build]
 == 2.3 Hands-On: Build the Base and v1 Images
-Now you’ll run the build scripts that assemble the appliance.
-
-Before running them, you may want to quickly look at the scripts to understand what they do.
+Now you’ll run the build scripts that assemble the appliance. We suggest you **inspect** (cat) each script first, then run the build so you understand what it does.
 
 . (Optional) View the build script for the base image:
 +
@@ -211,7 +234,7 @@ cat build-base.sh
 +
 [%collapsible]
 ====
-.Build script: `build-base.sh` (output of `cat build-base.sh`)
+.Build script: `build-base.sh` (abridged)
 [source,bash]
 ----
 #!/bin/bash
@@ -221,21 +244,16 @@ IMAGE_NAME=microshift-4.19-bootc
 dnf config-manager \
         --set-enabled rhocp-4.19-for-rhel-9-$(uname -m)-rpms \
         --set-enabled fast-datapath-for-rhel-9-$(uname -m)-rpms
-dnf config-manager --set-disabled rhocp-4.18-for-rhel-9-$(uname -m)-rpms --set-disabled rhocp-4.20-for-rhel-9-$(uname -m)-rpms
-cp /etc/yum.repos.d/redhat.repo /home/lab-user/bootc-embeeded-containers
-cp /etc/containers/policy.json /home/lab-user/bootc-embeeded-containers
-# Run podman build as root to allow for :z relabeling
-#
-# Mount the host subscription data
-#
-# In this lab there is no need for --authfile / pullsecret as we are pulling from a disconnected unsecure registry
+cp /etc/yum.repos.d/redhat.repo ./redhat.repo
+cp /etc/containers/policy.json ./policy.json
+
+# Run podman build (note: lab uses local registry / disconnected caches)
 sudo podman build -t ${IMAGE_NAME} \
     --build-arg USER_PASSWD=${USER_PASSWD} \
     --volume /etc/rhsm:/etc/rhsm:ro,z \
     --volume /etc/pki/entitlement:/etc/pki/entitlement:ro,z \
     --volume /etc/yum.repos.d:/etc/yum.repos.d:ro,z \
     -f Containerfile.base
-
 ----
 ====
 
@@ -246,7 +264,7 @@ sudo podman build -t ${IMAGE_NAME} \
 time sudo bash -x build-base.sh 2>&1 | tee build-base.log
 ----
 
-. (Optional) View the build script for `v1`:
+. (Optional) View the v1 build script:
 +
 [source,sh,role=execute]
 ----
@@ -255,7 +273,7 @@ cat build.sh
 +
 [%collapsible]
 ====
-.Build script: `build.sh` (output of `cat build.sh`)
+.Build script: `build.sh` (abridged)
 [source,bash]
 ----
 #!/bin/bash
@@ -270,7 +288,6 @@ if [ -z "$TAG" ]; then
     exit 1
 fi
 
-# Set IMAGE_NAME and BASE_IMAGE_NAME based on TAG (case-insensitive)
 TAG_LOWER=$(echo "$TAG" | tr '[:upper:]' '[:lower:]')
 case "$TAG_LOWER" in
     v1)
@@ -281,67 +298,36 @@ case "$TAG_LOWER" in
         IMAGE_NAME=microshift-4.20-bootc-embeeded
         BASE_IMAGE_NAME=microshift-4.20-bootc:${TAG}
         ;;
-    *)
-        echo "Error: TAG must be either v1/V1 or v2/V2"
-        exit 1
-        ;;
 esac
 
-#REGISTRY_IMG="rhn_support_arolivei/${IMAGE_NAME}"
-
-# For v2, configure dnf repositories
-if [ "$TAG_LOWER" = "v2" ]; then
-    echo "#### Configuring dnf repositories for v2"
-    sudo dnf config-manager \
-        --set-enabled rhocp-4.20-for-rhel-9-$(uname -m)-rpms \
-        --set-enabled fast-datapath-for-rhel-9-$(uname -m)-rpms
-    sudo dnf config-manager \
-        --set-disabled rhocp-4.18-for-rhel-9-$(uname -m)-rpms \
-        --set-disabled rhocp-4.19-for-rhel-9-$(uname -m)-rpms
-    cp /etc/yum.repos.d/redhat.repo /home/lab-user/bootc-embeeded-containers
-fi
-
-echo "#### Building a new bootc image with MicroShift and application Container images embeeded to it"
+echo "#### Building a new bootc image with MicroShift and embedded application images"
 sudo podman build -t "${IMAGE_NAME}:${TAG}" \
     --volume /etc/rhsm:/etc/rhsm:ro,z \
     --volume /etc/pki/entitlement:/etc/pki/entitlement:ro,z \
     --volume /etc/yum.repos.d:/etc/yum.repos.d:ro,z \
-    --volume /etc/containers/registries.conf.d/99-mirrors.conf:/etc/containers/registries.conf.d/99-mirrors.conf:ro,z \
-    --volume /etc/containers/policy.json:/etc/containers/policy.json:ro,z \
     --build-arg USHIFT_BASE_IMAGE_NAME="${BASE_IMAGE_NAME}" \
-    --build-arg USHIFT_BASE_IMAGE_TAG=${TAG} \
     -f Containerfile.${TAG}
-
-#echo "#### pushing bootc image to a registry"
-#podman push "localhost/${IMAGE_NAME}:${TAG}" "${REGISTRY_URL}/${REGISTRY_IMG}:${TAG}"
 
 sudo mkdir -p /var/tmp/bootc-images
 echo "#### creating ISO from bootc image"
 sudo podman run --rm -it --privileged --security-opt label=type:unconfined_t \
    -v /var/lib/containers/storage:/var/lib/containers/storage \
    -v /var/tmp/bootc-images:/output \
-   --volume /etc/rhsm:/etc/rhsm:ro \
-   --volume /etc/pki/entitlement:/etc/pki/entitlement:ro \
     registry.redhat.io/rhel9/bootc-image-builder:latest \
     --progress=verbose --local --type iso localhost/${IMAGE_NAME}:${TAG}
 ----
 ====
 
-. Build the v1 appliance image (this produces the bootable ISO in around 10 to 15 minutes):
+. Build the v1 appliance image (~10–15 minutes):
 +
 [source,sh,role=execute]
 ----
 time sudo bash -x build.sh v1 2>&1 | tee build-v1.log
 ----
 
-When the build completes, the ISO will appear in the `_build/` directory.
+When the build completes, the ISO will appear under `_build/` or `/var/tmp/bootc-images/`.
 
-[NOTE]
-====
-This ISO contains the OS, MicroShift, and all embedded container images — ready to run in an offline or air-gapped environment.
-====
-
-=== Validation checkpoint: Verify build success
+== Validation checkpoint: Verify build success
 Before proceeding, verify that both images were built successfully:
 
 . Check that the base image exists:
@@ -362,7 +348,7 @@ sudo podman images | grep microshift-4.19-bootc-embeeded
 +
 [source,sh,role=execute]
 ----
-ls -lh /var/tmp/bootc-images/bootiso/*.iso
+ls -lh /var/tmp/bootc-images/bootiso/*.iso || ls -lh _build/*.iso
 ----
 
 [IMPORTANT]
@@ -371,18 +357,16 @@ ls -lh /var/tmp/bootc-images/bootiso/*.iso
 
 * Base image `localhost/microshift-4.19-bootc:latest` should be present
 * Appliance image `localhost/microshift-4.19-bootc-embeeded:v1` should be present
-* ISO file `microshift-4.19-bootc-embeeded-v1.iso` should exist in `/var/tmp/bootc-images/bootiso/` (or `_build/` directory)
-* ISO file size should be several GB (contains embedded container images)
-
-If any of these are missing, review the build logs (`build-base.log` and `build-v1.log`) for errors.
+* ISO file `microshift-4.19-bootc-embeeded-v1.iso` should exist in `/var/tmp/bootc-images/bootiso/` or `_build/`
+* ISO file size will likely be several GB (it contains embedded container images)
 ====
 
 == 2.4 What happens next
 Once installed on the target VM:
 
-* The embedded container images are already available locally.
-* Before MicroShift starts, these images are added to the running system.
-* MicroShift then starts and launches your applications without needing any external registry.
+* Embedded images are available *before* MicroShift starts
+* The systemd ExecStartPre runs `copy_embedded_images.sh` to populate the container store
+* MicroShift launches workloads immediately — no external registry needed
 
 This pattern ensures predictable, repeatable, and offline-friendly deployments.
 
