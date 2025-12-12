@@ -57,9 +57,6 @@ cat Containerfile.4.20
 ====
 .Output of `$cat Containerfile.4.20`
 [source,dockerfile]
-+
-[%collapsible]
-[source,dockerfile]
 ----
 FROM localhost/microshift-bootc-embeeded:4.19
 COPY ./embed_image.sh /usr/bin/
@@ -432,13 +429,92 @@ This demonstrates the reliability and safety of RHEL Image Mode's atomic update 
 
 [#delta_updates]
 == 4.5 Experimental: Delta Updates
-In low-bandwidth environments, downloading an entire image for every update may not be practical.  
-**Delta updates** solve this by transferring only the difference between versions (4.19 → 4.20).
 
-While this is still **experimental**, Red Hat and the container community are exploring it.  
-You can experiment using the open-source link:https://github.com/containers/tar-diff[tar-diff] utility.
+=== Why File-Based Delta Updates?
 
-With tools like *tar-diff*, you can generate compact binary patches between image layers, reducing update sizes drastically — ideal for edge devices with limited connectivity.
+When edge nodes have reliable connectivity to a container registry, they can benefit from **registry-based delta transfers**—the registry and container runtime can efficiently transfer only the changed layers between image versions. However, many edge deployments face constraints that make registry-based updates impractical:
+
+* **No registry access:** Air-gapped or isolated edge locations cannot reach centralized registries
+* **Poor connectivity:** Intermittent, low-bandwidth, or unreliable network connections make registry pulls unreliable
+* **Security restrictions:** Network policies may prevent direct registry access from edge locations
+* **Cost concerns:** Satellite or cellular connectivity makes large transfers expensive
+
+**File-based delta updates** solve this by allowing you to:
+
+* Generate deltas in a development environment with good connectivity
+* Transfer the compact delta file via USB, local network, or other offline methods
+* Apply the delta directly on the target system without any registry dependency
+
+**Example Impact:**
+
+* Full image: 7.6 GB
+* Delta file: ~200-400 MB (typically 80-95% reduction)
+* Transfer method: USB drive, local network, or other offline transport
+* No registry required: Works completely offline
+
+=== How File-Based Delta Updates Work
+File-based delta updates create a compact, portable file representing only the changes between two bootc images (e.g., 4.19 → 4.20). The workflow is:
+
+* **Generate:** Create the delta file in a development environment with registry access
+* **Transfer:** Move the delta file to the edge location via USB, local network, or other offline methods
+* **Apply:** Reconstruct the new image from the existing image and delta file, all without registry access
+
+The delta contains only the modified files and metadata needed to reconstruct the new image from the existing one. This enables updates in environments where registry-based delta transfers are not possible.
+
+=== Current Status: Experimental
+Delta updates for bootc are currently **experimental** and under active development. Red Hat is exploring multiple approaches:
+
+* **OCI-level deltas:** Tools like `tar-diff` that work with container images
+* **Future native support:** Potential `oci-delta` tool aligned with Flatpak OCI delta specifications
+
+[NOTE]
+====
+**Experimental Nature:** The tooling and workflows for delta updates are still evolving. Current approaches require manual steps and may change as the feature matures. For production use, monitor Red Hat documentation for updates.
+====
+
+=== Community Tools and Approaches
+While native bootc delta support is in development, you can experiment with:
+
+* **tar-diff/tar-patch:** Open-source utility for generating binary patches between container image layers
+
+  * Repository: link:https://github.com/containers/tar-diff[tar-diff on GitHub]
+  * Works with any container image format
+  * Requires manual reconstruction on target system
+  * For detailed procedures and examples, see link:https://github.com/arthur-r-oliveira/bootc-embeeded-containers/blob/rhpds/delta-updates-experimental.md[delta-updates-experimental.md] in the repository
+
+=== When to Use File-Based Delta Updates
+
+**Use registry-based updates when:**
+
+* Edge nodes have reliable, high-bandwidth connectivity to a registry
+* Network policies allow direct registry access
+* Registry infrastructure is available and accessible
+
+**Use file-based delta updates when:**
+
+* **Air-gapped environments:** Systems cannot access container registries at all
+* **Poor connectivity:** Intermittent, low-bandwidth, or unreliable network connections
+* **Far-edge deployments:** Remote locations where registry access is impractical or expensive
+* **Security restrictions:** Network policies prevent direct registry access from edge locations
+* **Cost optimization:** Satellite or cellular connectivity makes large transfers prohibitively expensive
+* **Large fleets:** Updating many devices where bandwidth costs matter
+
+File-based deltas are particularly valuable when you need the efficiency of delta transfers but cannot rely on registry-based mechanisms.
+
+[IMPORTANT]
+====
+**Current Recommendation:** For most use cases, the disconnected workflow demonstrated in section 4.3 (transferring full images via directory transport) is the recommended approach. Delta updates should be considered when bandwidth constraints make full image transfers impractical.
+====
+
+=== Future Direction
+Red Hat is actively working on native delta update support (see link:https://issues.redhat.com/browse/RHELBU-3333[RHELBU-3333]). The goal is to provide:
+
+* Unified tooling that works with standard container formats
+* Integration with bootc workflows
+* Support for air-gapped and low-bandwidth scenarios
+* Alignment with industry standards (Flatpak OCI delta spec)
+
+When available, delta updates will become a first-class feature for edge appliance management.
 
 
 [#summary]
