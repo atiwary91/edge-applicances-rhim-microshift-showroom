@@ -7,14 +7,14 @@
 == Learning objectives
 By the end of this module, you will be able to:
 
-* Understand the structure of a bootc Containerfile and how it extends a base RHEL image
-* Explain why EUS (Extended Update Support) images are used for appliances
-* Explain why `redhat.repo` (or equivalent) is embedded in the base image
-* Explain physically-bound images and how container images are embedded immutably
-* Understand why embedded images are placed under `/usr/lib` rather than `/var`
-* Build a base RHEL image with MicroShift using Podman
-* Build a self-contained appliance image with embedded applications
-* Generate a bootable ISO from a container image using the bootc-image-builder
+* Read and explain a bootc Containerfile
+* Understand why EUS (Extended Update Support) matters for long-lived appliances
+* Explain why repo metadata (`redhat.repo`) must be embedded
+* Define physically-bound images and why they matter for edge
+* Explain why embedded images live under `/usr` instead of `/var`
+* Build a MicroShift-enabled base image
+* Build a self-contained appliance with embedded workloads
+* Generate a bootable ISO using `bootc-image-builder`
 
 [#know_section]
 [#containerfile]
@@ -22,55 +22,77 @@ By the end of this module, you will be able to:
 
 === The Business Challenge
 
-Remember ManufacturingCo from the introduction? They need to deploy appliances to 50 factory locations, many of which have intermittent or no network connectivity. Traditional approaches require:
+ManufacturingCo needs to deploy the same appliance to 50 factory sites — including locations with **intermittent or no network**.
 
-* Pulling container images from registries at runtime
-* Network access for application deployments
-* Manual configuration and package management
-* Complex multi-step deployment processes
+Traditional methods require:
 
-**The Problem:** How do we create appliances that work completely offline, eliminating the need for runtime registry access and network dependencies?
+* Pulling application images at runtime
+* Constant registry access
+* Manual package installs and config steps
+* Multi-stage deployment
+
+These steps do not scale to remote, offline, or bandwidth-constrained environments.
+
+**Challenge:** How do we deploy appliances that work everywhere — **even when the network is gone?**
 
 === Why We Need Self-Contained Appliances
 
-Self-contained appliances solve the **disconnected operations challenge** we discussed in Module 1. By embedding everything needed to run—the OS, MicroShift, and application container images—directly into the bootable image, we enable:
+Self-contained appliances embed **everything required to boot and run workloads**, including:
 
-* **True offline operation:** Appliances boot and run applications without any internet access
-* **Deterministic deployments:** Every appliance matches exactly what you validated in testing
-* **Simplified deployment:** Single ISO file contains everything needed
-* **Consistent behavior:** No variation due to network conditions or registry availability
+* RHEL Image Mode base
+* MicroShift
+* Application container images
+* Quadlets/manifests
+
+This provides:
+
+* **True offline operation** — no registry dependency
+* **Deterministic deployments** — every image identical
+* **Single artifact delivery** — USB/ISO deploys the full system
+* **Repeatability** — tested image = deployed image
+
+This eliminates runtime dependencies and solves disconnected operations.
 
 === How Containerfiles Solve This Problem
 
-A `Containerfile` is the recipe for your appliance. It defines:
+A `Containerfile` becomes the **source of truth** for the appliance.
 
-* The base OS (RHEL bootc base)
-* MicroShift components and required RPMs
-* System configuration, firewall, and hardening
-* Embedded manifests (Quadlets) and application images
-* Scripts or units to import embedded images at runtime
+It defines:
 
-This single file approach transforms appliance creation from a complex, multi-step process into a **version-controlled, repeatable build** that solves the disconnected deployment challenge.
+* Base OS
+* MicroShift and required packages
+* System configuration (firewall, security)
+* Quadlets/manifests
+* Embedding logic for application images
 
-=== Why Use EUS (Extended Update Support)?
+Instead of multi-step “build → install → configure”, we now:
+**define → build → ship → deploy**  
+— all inside one version-controlled file.
 
-We choose **EUS** images for appliances because they provide:
+=== Why We Use EUS (Extended Update Support)
 
-* Long lifecycle stability (fewer, predictable changes)
-* A predictable minor release stream (helpful for validated appliances)
-* A better platform match for long-running edge/industrial deployments
+EUS is chosen because edge deployments value:
 
-Appliances typically prefer stability and predictability over the fastest-moving release. This aligns with customer needs for reliable, long-running edge deployments.
+* Predictability over rapid change
+* Known-good versions for years
+* Fewer surprise updates
+* Reduced validation and testing load
 
-=== Why Embed `redhat.repo` (or repo metadata) into the image?
+For industrial systems, stability beats speed — making EUS the natural choice.
 
-`bootc-image-builder` and container-based builds use `dnf` within the image build. To ensure `dnf` can resolve packages during build, the base image must contain repo metadata (for example `/etc/yum.repos.d/redhat.repo`). Embedding the repo file inside the base ensures that:
+=== Why Embed Repo Metadata (`redhat.repo`)
 
-* Builds are reproducible (the same repos used each time).
-* `dnf` can perform package installs during the container build step.
-* The image builder has the correct subscription/repo context.
+During image builds, tools like `dnf` must resolve packages.
 
-. View the `Containerfile` for the base image:
+Embedding repo metadata ensures:
+
+* Builds complete without external repo configuration
+* Reproducible builds across CI/CD pipelines
+* No dependency on host-side repo files later
+
+This is required for repeatable container-based OS builds.
+
+. View the base Containerfile:
 +
 [source,sh,role=execute]
 ----
@@ -135,101 +157,100 @@ COPY wordpress /usr/lib/microshift/manifests.d/wordpress
 ----
 ====
 
-This Containerfile extends the RHEL EUS bootc base image, installs MicroShift, configures firewall rules, and places manifests for MicroShift.
+[NOTE]
+====
+You do **not** need to modify `Containerfile.base` in this lab — it is provided so you understand what goes into your base appliance.
+====
 
 [NOTE]
 ====
-You don't need to edit `Containerfile.base` for this lab — we show it so you understand what's being installed into the appliance.
-====
+**Layered vs Fresh Images:**  
+This workshop uses **layered builds** (base → 4.19 → 4.20) to accelerate development.  
+However, **bootc switch** works fine with fresh, independent images built directly from the OS base.
 
-[NOTE]
-====
-**Layered vs. Fresh Images:** This workshop demonstrates building layered images (RHEL base → MicroShift base → embedded 4.19 → embedded 4.20) for faster incremental builds. However, `bootc switch` does not require layered images—you can build and switch to completely fresh, independent images built directly from the RHEL base. Building fresh images for each version can help manage image sizes, as each image contains only the necessary components without accumulating redundant data from previous layers. For more information, see link:https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html-single/using_image_mode_for_rhel_to_build_deploy_and_manage_operating_systems/index#managing-bootc-updates_using-image-mode-for-rhel[Managing bootc updates].
+Fresh builds avoid accumulating unused layers over time — a pattern preferred for long-term production appliances.
 ====
 
 [#physically_bound]
 == 2.2 Know: Physically-Bound Images for Disconnected Operations
 
-=== Remember the Disconnected Operations Challenge?
+=== The Disconnected Reality
 
-In the introduction, we discussed how many edge devices have intermittent or no network connectivity, making traditional update and management approaches impractical. ManufacturingCo's factory locations often operate in disconnected or bandwidth-constrained networks.
+Many edge environments cannot:
 
-**The Challenge:** How do we ensure appliances can run cloud-native applications (like WordPress and MySQL) without requiring runtime registry access?
+* Pull container images  
+* Access registries  
+* Receive OTA updates reliably
 
-=== Physically-Bound Images: The Solution
+Yet, workloads still need to start instantly.
 
-A **physically-bound** image contains everything needed to run: the OS, MicroShift, application container images, and any Quadlets/manifests. This enables **true offline operation**.
+**Solution:** Put everything in the OS image from day one.
 
-**Business Value:**
-* Boot and run applications without any internet access
-* MicroShift can start and immediately use local images
-* Deterministic appliances that match exactly what you validated
-* No runtime registry dependency—eliminates network connectivity requirements
+=== Physically-Bound Images
 
-This solves the disconnected operations challenge by making the appliance completely self-contained.
+A **physically-bound image** bundles:
 
-=== The Immutability Reason: `/usr` vs `/var`
+* OS + MicroShift
+* Application workloads
+* Quadlets/manifests
+* Supporting assets
 
-Under Image Mode the root filesystem is treated as read-only at runtime. Key points:
+This gives:
 
-* `/usr` — written during the build process, becomes part of the image and is versioned with the OS.
-* `/var` — runtime data store; mutable and not intended to be the place for versioned, build-time assets.
+* Appliances that boot and run offline
+* Strict version alignment between OS + apps
+* Deployment by **copying a single file** (ISO or disk image)
+* Guaranteed consistency across every factory
 
-Storing embedded images under `/usr/lib/...` makes them part of the immutable image and ensures:
+=== Why `/usr` — Not `/var`
 
-* Images are versioned together with the OS image
-* They are upgrade-safe and roll back with the OS
-* They cannot be accidentally mutated at runtime
+Image Mode treats:
 
-If we stored them in `/var`, they would not be tied to the OS image lifecycle and could drift—defeating the purpose of immutable, versioned appliances.
+* `/usr` → **immutable** and versioned with the OS
+* `/var` → **mutable**, runtime storage
+
+Embedding workloads under `/usr/lib/...` ensures:
+
+* Apps upgrade and roll back **with the OS**
+* No drift between OS and application payloads
+* No risk of runtime mutation breaking state
+
+Putting them in `/var` would defeat the purpose of immutability.
 
 === How Physical Embedding Works
 
-We embed images using `skopeo` and the `dir:` transport during the **build**.
-
-*Embed into a directory inside the image (build time):*
+**Build time** — use `skopeo` to copy into `/usr/lib/...`:
 
 [source,bash]
 ----
-RUN skopeo copy --preserve-digests docker://registry.example.com/my-app:1.0 \
-    dir:/usr/lib/containers-image-cache/my-app-1.0
+RUN skopeo copy --preserve-digests docker://image \
+    dir:/usr/lib/containers-image-cache/app
 ----
 
-This creates a directory that contains the image content and preserves digests so references by SHA still work.
-
-*At runtime (first boot or ExecStartPre), import into Podman's mutable store:*
+**Runtime** — import into the podman store automatically:
 
 [source,bash]
 ----
 /usr/bin/skopeo copy --preserve-digests \
-    dir:/usr/lib/containers-image-cache/my-app-1.0 \
-    containers-storage:registry.example.com/my-app@sha256:<digest>
+  dir:/usr/lib/containers-image-cache/app \
+  containers-storage:registry/image@sha256:<digest>
 ----
 
-This loads the embedded data into the Podman storage so MicroShift (or kubelet/container runtimes) can reference the image by name or digest.
+MicroShift can now run workloads without a registry.
 
 === Why `dir:` Transport?
 
-* `dir:` allows bundling multiple images under one directory.
-* It preserves image digests (crucial for referencing by SHA).
-* It's file-system friendly and portable within the ISO.
+* Bundles multiple images
+* Filesystem-friendly, no registries needed
+* Preserves digests (critical for SHA-pinned references)
 
-=== Why Not Use a Secondary Image Store?
+=== Helper Scripts Provided
 
-A secondary store is not replaced during an OS upgrade. Embedded images *change with each OS image* and must live inside that OS image to be versioned and rolled back together. That's why we place them under `/usr/lib`.
+* `embed_image.sh` — pulls container images into `/usr/lib`
+* `copy_embedded_images.sh` — loads them into the runtime store at boot
 
-=== Helper Scripts
-
-This repo includes two helper scripts you'll see and can inspect:
-
-* `embed_image.sh` — used during the Containerfile build to `skopeo copy` an image into the `/usr/lib/...` dir.  
-  - Usage: `embed_image.sh <image-reference> [--all] [--authfile ...]`  
-  - If referencing a manifest list by digest, use `--all` so `skopeo` copies the whole manifest list and ALL variant images.
-
-* `copy_embedded_images.sh` — invoked at boot (via a systemd ExecStartPre) to copy all embedded `dir:` images into the Podman container store (containers-storage), making them available to MicroShift.
-
-Upstream example / reference for patterns:
-link:https://gitlab.com/fedora/bootc/examples/-/tree/main/physically-bound-images[physically-bound-images examples].
+Upstream reference patterns:
+link:https://gitlab.com/fedora/bootc/examples/-/tree/main/physically-bound-images[Fedora examples]
 
 . View the `Containerfile` for the 4.19 appliance (embedding step):
 +
