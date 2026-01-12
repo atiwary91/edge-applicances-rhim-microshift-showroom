@@ -1,13 +1,16 @@
-= Building Self-contained Appliances with RHEL Image Mode and MicroShift
+= Building Self-Contained Edge Appliances with RHEL Image Mode & MicroShift
 
-Welcome to a hands-on lab focused on the modern appliance experience.
+Welcome to a hands-on lab focused on building real cloud-native appliances—designed for engineers, architects, consultants, and sales teams who build, sell, position, or operate solutions at the edge.
 
-Our link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 - Unleashing The Power of Image Mode for RHEL] lab introduced the foundational technology to treat the OS as an image. This lab takes the next logical step: building a true cloud-native appliance that solves real customer challenges.
+Our previous lab, link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 – Unleashing The Power of Image Mode for RHEL^], introduced treating the OS as an image.  
+This lab takes the next step: **building a production-grade appliance** that addresses real customer challenges such as disconnected operations, risky updates, inconsistent lifecycle management, and resource-limited deployments.
 
 [#customer_scenario]
 == Customer Scenario: ManufacturingCo's Edge Appliance Challenge
 
-ManufacturingCo operates 50 factory locations across North America, each running critical edge appliances that control production lines and quality monitoring systems. These appliances must:
+ManufacturingCo operates 50 factory locations across North America, each running critical edge appliances that control production lines and quality monitoring systems.
+
+These appliances must:
 
 * Operate reliably in harsh industrial environments
 * Function in disconnected or bandwidth-constrained networks
@@ -17,153 +20,149 @@ ManufacturingCo operates 50 factory locations across North America, each running
 
 === Current State
 
-* *Deployment cycles:* 6-8 weeks per location
-* *Update failures:* 15% require on-site IT intervention
-* *Configuration drift:* 30% of appliances diverge from intended state within 6 months
-* *Recovery time:* 2-4 hours for failed updates
-* *Security patches:* Applied inconsistently due to disconnected environments
+* *Deployment cycles:* 6–8 weeks per location
+* *Update failures:* ~15% require on-site IT intervention
+* *Configuration drift:* ~30% diverge from their intended state within 6 months
+* *Recovery time:* 2–4 hours for failed updates
+* *Security patches:* Applied inconsistently due to limited or no connectivity
 
 === The Challenge
 
-ManufacturingCo needs a way to build, deploy, and manage self-contained edge appliances that eliminate these operational headaches while enabling modern cloud-native applications.
+ManufacturingCo needs a repeatable way to build, deploy, update, and operate self-contained edge appliances—without depending on network connectivity or highly skilled IT staff at each field site.
 
 [NOTE]
 ====
-**Metrics Source:** The metrics used in this scenario (6-8 weeks deployment, 15% failure rate, 30% configuration drift, etc.) are illustrative examples based on common industry challenges. When presenting to customers, technical sellers should adapt these metrics to their customer's specific situation or use industry benchmarks where available.
+**Metrics Source:** These values (deployment cycles, failure rates, configuration drift, etc.) reflect common industry patterns and are used here for illustration.  
+When presenting to real customers, adjust these metrics to match their business, environment, and benchmarks.
 ====
 
 [#problem]
-== The Problem: Edge Appliance Operational Challenges
+== The Problem: Edge Appliances Are Hard to Operate at Scale
 
-If you build or manage software appliances—especially for edge or disconnected environments—you face constant challenges that impact your business:
+If you build or manage appliances in the field—especially across remote or disconnected sites—you face recurring challenges that slow delivery, increase cost, and put reliability at risk.
 
 === Configuration Drift
 
 ==== The Pain
-
-Systems slowly diverge from their intended state over time, especially when managed remotely or with limited on-site expertise.
+Systems gradually change from the intended state—especially without expert hands on site.
 
 ==== The Impact
-
-* Inconsistent behavior across your fleet
-* Security vulnerabilities from unpatched systems
-* Difficult troubleshooting when "it works on my machine"
-* Compliance failures from configuration differences
+* Fleet becomes inconsistent and unpredictable
+* Patch gaps create vulnerabilities
+* Troubleshooting is slow and error-prone
+* Compliance and audit checks become harder
 
 === Risky Updates
 
 ==== The Pain
-
-Traditional update methods can break systems in the field, and recovery may be difficult or impossible without on-site IT staff.
+Traditional in-place updates can break systems and are difficult to recover from remotely.
 
 ==== The Impact
-
-* Production downtime during failed updates
-* High cost of sending IT staff to remote locations
-* Risk of data loss or system corruption
-* Extended recovery times (hours to days)
+* Outages or degraded services during failed updates
+* Costly “truck rolls” for onsite recovery
+* Higher risk of corruption or service disruption
+* Rollbacks are slow—or impossible
 
 === Disconnected Operations
 
 ==== The Pain
-
-Many edge devices have intermittent or no network connectivity, making traditional update and management approaches impractical.
+Many edge sites lack reliable connectivity—or any connection at all.
 
 ==== The Impact
-
-* Cannot pull container images from registries at runtime
-* Security patches delayed or skipped
-* Manual update processes requiring physical access
-* Inability to deploy new applications without network
+* Systems cannot pull images or packages on demand
+* Security and feature updates get delayed
+* USB / sneakernet workflows become the norm
+* This slows down scale and standardization
 
 === Resource Constraints
 
 ==== The Pain
-
-Edge devices often have minimal resources (starting from 1 core and 2 GB RAM), requiring efficient, lightweight solutions.
+Edge hardware is small, rugged, and cost-sensitive.
 
 ==== The Impact
-
-* Limited ability to run full Kubernetes clusters
-* Performance degradation from resource-heavy solutions
-* Higher hardware costs to meet requirements
-* Inability to deploy to smallest edge devices
+* Typical footprint: 1 CPU + 2 GB RAM
+* Resource-heavy platforms don’t fit
+* Full Kubernetes clusters overwhelm devices
+* Higher hardware costs if footprint isn’t optimized
 
 === Lifecycle Management Complexity
 
 ==== The Pain
-
-Building, testing, deploying, and maintaining edge appliances across diverse locations requires consistent, repeatable processes.
+Managing dozens—or hundreds—of edge sites multiplies every operational issue.
 
 ==== The Impact
-
-* Long deployment cycles (weeks to months)
-* Inconsistent builds across environments
-* Difficult to maintain OS and application versions
-* High operational overhead for fleet management
+* Slow deployment cycles across locations
+* Version sprawl across OS and applications
+* Build and config inconsistency between sites
+* Fleet operations become manual and reactive
 
 image::challenges.jpg[challenges,100%,100%]
 
 [#solution]
 == The Solution: RHEL Image Mode + MicroShift
 
-RHEL Image Mode, backed by **bootc**, addresses these operational challenges by treating the *entire* OS as an immutable, versioned image—just like a container. Combined with Red Hat build of MicroShift, you can build truly self-contained edge appliances that solve the problems above.
+**RHEL Image Mode**, powered by `bootc`, eliminates many of these operational risks by treating the *entire* OS as a **versioned, immutable container image**.
+
+Paired with **Red Hat build of MicroShift**, you get a lightweight Kubernetes platform that delivers a consistent, cloud-native experience on small-footprint edge devices.
+
+Together, they create a **self-contained, reliable edge appliance platform**.
 
 === How It Solves Configuration Drift
 
 ==== The Solution
-
-Every device boots from the same known-good image, eliminating configuration drift.
+Every system boots from the same golden image that contains OS + apps.
 
 ==== The Outcome
-
-Consistent behavior across your entire fleet, reduced security vulnerabilities, easier troubleshooting, and compliance confidence.
+* Consistent behavior across sites
+* Easier troubleshooting
+* Predictable compliance
 
 === How It Solves Risky Updates
 
 ==== The Solution
-
-Atomic updates with A/B boot model and instant rollback capability.
+Atomic updates with A/B boot and instant rollback.
 
 ==== The Outcome
-
-Safe upgrades that can be instantly reverted, no on-site IT required for recovery, reduced downtime risk, and confidence in field updates.
+* Safe upgrades with fast recovery
+* No need for on-site IT support
+* Greatly reduced outage risk
 
 === How It Solves Disconnected Operations
 
 ==== The Solution
-
-Self-contained, "physically-bound" images that embed OS, MicroShift, and applications directly into the bootable image.
+Embed OS, MicroShift, and applications directly into the bootable image—no network required.
 
 ==== The Outcome
-
-Appliances that operate fully offline, no runtime registry pulls required, security patches embedded in images, and ability to deploy via USB/ISO.
+* Works fully offline
+* Deploy via USB/ISO or sneakernet
+* No runtime registry dependency
 
 === How It Solves Resource Constraints
 
 ==== The Solution
-
-MicroShift provides lightweight Kubernetes (derived from OpenShift) optimized for edge devices.
+MicroShift provides Kubernetes derived from OpenShift—optimized for tiny edge systems.
 
 ==== The Outcome
-
-Run cloud-native applications on minimal hardware, consistent Kubernetes experience, enterprise-grade platform without full cluster overhead.
+* Runs cloud-native apps on minimal hardware
+* Delivers enterprise-grade workload orchestration
+* Maintains OpenShift compatibility
 
 === How It Solves Lifecycle Management
 
 ==== The Solution
-
-Build, ship, and manage appliances like container images using standard DevOps/CI/CD practices.
+Build, test, ship, and manage appliances using standard container workflows.
 
 ==== The Outcome
-
-Faster deployment cycles (days instead of weeks), consistent builds, version control for OS and applications, and simplified fleet management.
+* Days instead of weeks for updates
+* Git-like versioning for the full stack
+* Simple fleet-wide lifecycle control
 
 image::use-cases.jpg[use-cases,100%,100%]
 
 [NOTE]
 ====
-RHEL Image Mode evolved from technologies like link:https://www.redhat.com/en/blog/red-hat-device-edge-rpm-ostree-updates[rpm-ostree], making it a natural fit for appliances, edge devices, and container hosts where image-based operations are already common. This lab leverages what we learned about Image Mode through link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 - Unleashing The Power of Image Mode for RHEL], and moves beyond with focus for **Edge Appliances**. You will learn how to build a true, self-contained appliance by embedding Red Hat build of MicroShift and your applications directly into the OS image—using "physically-bound images" to create an appliance ready **for disconnected edge deployments**.
+Image Mode evolved from link:https://www.redhat.com/en/blog/red-hat-device-edge-rpm-ostree-updates[rpm-ostree^], a proven architecture for edge and appliance operations.  
+This lab builds on link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 – Unleashing The Power of Image Mode for RHEL^], extending it to embed MicroShift and applications into the OS image—creating fully self-contained appliances that function even in disconnected environments.
 ====
 
 [#benefits]
@@ -171,54 +170,40 @@ RHEL Image Mode evolved from technologies like link:https://www.redhat.com/en/bl
 
 By adopting RHEL Image Mode and MicroShift for edge appliances, customers achieve:
 
-=== Accelerate Time-to-Market
-[cols="1,2,2"]
+[cols="20,25,25,30", options="header"]
 |===
-| | From | To
-| Deployment | 6-8 week deployment cycles per location | Days to deploy new appliances or updates
-| Impact | | Reduce time-to-value by 75%, enable faster innovation cycles
-|===
+| Benefit | From | To | Impact
 
-=== Simplify Appliance Creation
-[cols="1,2,2"]
-|===
-| | From | To
-| Build Process | Complex multi-step build processes, manual configuration | Single Containerfile defines entire appliance
-| Impact | | Reduce build complexity by 80%, enable version control for entire stack
-|===
+| Accelerate Time-to-Market
+| 6–8 week deployment cycles per location
+| Days to deploy new appliances or updates
+| **Reduce time-to-value by 75%, enable faster innovation cycles**
 
-=== Streamline Field Operations
-[cols="1,2,2"]
-|===
-| | From | To
-| Updates | Risky updates requiring on-site IT, 15% failure rate | Atomic updates with instant rollback, smartphone-like reliability
-| Impact | | Eliminate 90% of update-related downtime, reduce field support costs
-|===
+| Simplify Appliance Creation
+| Complex multi-step build processes, manual configuration
+| Single Containerfile defines entire appliance
+| **Reduce build complexity by 80%, enable version control for entire stack**
 
-=== Enhance Security
-[cols="1,2,2"]
-|===
-| | From | To
-| Security Posture | Configuration drift, inconsistent patching, security vulnerabilities | Immutable images, embedded security patches, reduced attack surface
-| Impact | | Eliminate configuration drift, ensure consistent security posture
-|===
+| Streamline Field Operations
+| Risky updates requiring on-site IT, 15% failure rate
+| Atomic updates with instant rollback, smartphone-like reliability
+| **Eliminate 90% of update-related downtime, reduce field support costs**
 
-=== Enable Disconnected Deployments
-[cols="1,2,2"]
-|===
-| | From | To
-| Deployment Method | Network-dependent updates, manual processes for offline locations | Self-contained images, USB/ISO deployment, no runtime registry dependency
-| Impact | | Deploy to any location regardless of connectivity, reduce operational complexity
-|===
+| Enhance Security
+| Configuration drift, inconsistent patching, security vulnerabilities
+| Immutable images, embedded security patches, reduced attack surface
+| **Eliminate configuration drift, ensure consistent security posture**
 
-=== Manage Fleets at Scale
-[cols="1,2,2"]
-|===
-| | From | To
-| Fleet Management | Inconsistent versions, difficult fleet management | Standard container registries, Git-like versioning for OS
-| Impact | | Consistent versions across fleet, simplified lifecycle management
-|===
+| Enable Disconnected Deployments
+| Network-dependent updates, manual processes for offline locations
+| Self-contained images, USB/ISO deployment, no runtime registry dependency
+| **Deploy to any location regardless of connectivity, reduce operational complexity**
 
+| Manage Fleets at Scale
+| Inconsistent versions, difficult fleet management
+| Standard container registries, Git-like versioning for OS
+| **Consistent versions across fleet, simplified lifecycle management**
+|===
 [#common_questions]
 == Common Customer Questions
 
