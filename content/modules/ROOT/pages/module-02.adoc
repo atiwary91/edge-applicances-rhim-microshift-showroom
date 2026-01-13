@@ -74,7 +74,7 @@ Instead of multi-step “build → install → configure”, we now:
 EUS is chosen because edge deployments value:
 
 * Lifecycle sync and Hardened device-edge compatibility (Ensures stability within the Red Hat Device Edge validated link:https://docs.redhat.com/en/documentation/red_hat_device_edge/4/html/overview/device-edge-overview#device-edge-compatibility_device-edge-overview[matrix^]).
-* Extended support up to 36 months (When paired with link:https://access.redhat.com/support/policy/updates/openshift#eust3[OpenShift/MicroShift EUS Term 3^]).
+* Extended support up to 48 months (When paired with link:https://access.redhat.com/support/policy/updates/openshift#eust3[OpenShift/MicroShift EUS Term 3^]).
 * Security fixes without minor version jumps (Critical for air-gapped or bandwidth-constrained edge nodes).
 
 For industrial systems, stability beats speed — making EUS the natural choice.
