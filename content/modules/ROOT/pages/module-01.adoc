@@ -15,7 +15,7 @@ By the end of this module, you will be able to:
 
 === The Business Challenge
 
-ManufacturingCo—and most organizations deploying systems outside the data center—face the same reality:
+As introduced in the xref:index.adoc#problem[workshop overview], organizations deploying systems outside the data center face the same reality:
 moving compute to where work happens introduces friction, operational risk, and inconsistency.
 
 Edge computing reduces latency and improves decisions where data is generated, but:
@@ -64,7 +64,7 @@ Each topology introduces different operational needs and lifecycle constraints.
 
 === Why Edge Appliances Are Hard to Manage
 
-Inconsistent environments amplify the challenges already introduced in the lab overview:
+Inconsistent environments amplify the challenges introduced in the xref:index.adoc#problem[workshop overview]:
 
 * **Configuration drift:** Appliances gradually diverge from expected state → leading to unpredictable behavior
 * **Risky updates:** In-place updates risk service loss, require expert recovery, and cause downtime
@@ -76,14 +76,18 @@ Inconsistent environments amplify the challenges already introduced in the lab o
 ====
 **Industry Examples:**
 
-* *Manufacturing:* ManufacturingCo uses edge appliances to deploy quality monitoring systems to 50 factory locations, but faces 6-8 week deployment cycles and 15% update failure rates requiring on-site IT intervention.  
-* *Telecom:* TelecomProvider deploys network edge appliances for 5G base stations, enabling rapid deployment and updates across hundreds of cell sites with minimal on-site IT support.
-* *Energy:* EnergyCorp uses industrial IoT gateways for oil & gas monitoring, ensuring reliable operation in remote locations with intermittent connectivity and harsh environmental conditions.
-* *Healthcare:* HealthSystem deploys medical device edge appliances for patient monitoring, maintaining HIPAA compliance and ensuring consistent security patches across all hospital locations.
+* *Manufacturing:* Organizations use edge appliances to deploy quality monitoring systems to multiple factory locations, but face long deployment cycles and update failure rates requiring on-site IT intervention.  
+* *Telecom:* Providers deploy network edge appliances for 5G base stations, enabling rapid deployment and updates across hundreds of cell sites with minimal on-site IT support.
+* *Energy:* Companies use industrial IoT gateways for oil & gas monitoring, ensuring reliable operation in remote locations with intermittent connectivity and harsh environmental conditions.
+* *Healthcare:* Health systems deploy medical device edge appliances for patient monitoring, maintaining HIPAA compliance and ensuring consistent security patches across all hospital locations.
+
+For a specific customer scenario example, see the xref:index.adoc#problem[ManufacturingCo case study] in the workshop overview.
 ====
 
 [#bootc_solution]
 == 1.2 Know: How RHEL Image Mode Addresses These Challenges
+
+As introduced in the xref:index.adoc#solution[workshop overview], RHEL Image Mode **treats the OS like a container image** using bootc. Instead of modifying a live filesystem, appliances update by replacing the system image entirely. This section provides a deeper understanding of how this approach transforms edge appliance management.
 
 === Current State vs. Desired State
 
@@ -105,20 +109,17 @@ Inconsistent environments amplify the challenges already introduced in the lab o
 
 === How RHEL Image Mode Solves These Challenges
 
-RHEL Image Mode **treats the OS like a container image** using bootc.
-Instead of modifying a live filesystem, appliances update by replacing the system image entirely.
+The image-based approach provides key capabilities that address the edge challenges:
 
-This provides:
+* **Consistency:** Every appliance runs the same bootc image, eliminating configuration drift
 
-* **Consistency:** Every appliance runs the same bootc image  
+* **Reliability:** Updates are transactional with instant rollback, solving risky update problems
 
-* **Reliability:** Updates are transactional with instant rollback  
+* **Simplicity:** Same tooling used for application development (Containerfiles, registries, CI/CD), simplifying lifecycle management
 
-* **Simplicity:** Same tooling used for application development (Containerfiles, registries, CI/CD)
+* **Disconnected Operation:** Images embed OS + MicroShift + apps → no runtime pulls, enabling offline deployments
 
-* **Disconnected Operation:** Images embed OS + MicroShift + apps → no runtime pulls  
-
-* **Resource Optimization:** Minimal overhead, ideal for small footprint devices
+* **Resource Optimization:** Minimal overhead, ideal for small footprint devices, addressing resource constraints
 
 === Why This Matters
 

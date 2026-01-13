@@ -5,20 +5,14 @@ Welcome to a hands-on lab focused on building real cloud-native appliances—des
 Our previous lab, link:https://rhpds.github.io/showroom-lb1054-rhel-image-mode/modules/index.html[LB1054 – Unleashing The Power of Image Mode for RHEL^], introduced treating the OS as an image.  
 This lab takes the next step: **building a production-grade appliance** that addresses real customer challenges such as disconnected operations, risky updates, inconsistent lifecycle management, and resource-limited deployments.
 
-[#customer_scenario]
-== Customer Scenario: ManufacturingCo's Edge Appliance Challenge
+[#problem]
+== The Challenge: Edge Appliances Are Hard to Operate at Scale
 
-ManufacturingCo operates 50 factory locations across North America, each running critical edge appliances that control production lines and quality monitoring systems.
+Consider ManufacturingCo, which operates 50 factory locations across North America, each running critical edge appliances that control production lines and quality monitoring systems. These appliances must operate reliably in harsh industrial environments, function in disconnected or bandwidth-constrained networks, support cloud-native applications, update safely without disrupting production, and maintain consistency across all locations.
 
-These appliances must:
+=== The Reality
 
-* Operate reliably in harsh industrial environments
-* Function in disconnected or bandwidth-constrained networks
-* Support cloud-native applications for modern workloads
-* Update safely without disrupting production
-* Maintain consistency across all 50 locations
-
-=== Current State
+ManufacturingCo's current state illustrates the challenges many organizations face:
 
 * *Deployment cycles:* 6–8 weeks per location
 * *Update failures:* ~15% require on-site IT intervention
@@ -28,75 +22,25 @@ These appliances must:
 
 image::ManufacturingCo-challenges.jpg[ManufacturingCo-challenges.jpg,100%,100%]
 
-=== The Challenge
-
-ManufacturingCo needs a repeatable way to build, deploy, update, and operate self-contained edge appliances—without depending on network connectivity or highly skilled IT staff at each field site.
-
 [NOTE]
 ====
 **Metrics Source:** These values (deployment cycles, failure rates, configuration drift, etc.) reflect common industry patterns and are used here for illustration.  
 When presenting to real customers, adjust these metrics to match their business, environment, and benchmarks.
 ====
 
-[#problem]
-== The Problem: Edge Appliances Are Hard to Operate at Scale
+=== Common Edge Challenges
 
-If you build or manage appliances in the field—especially across remote or disconnected sites—you face recurring challenges that slow delivery, increase cost, and put reliability at risk.
+If you build or manage appliances in the field—especially across remote or disconnected sites—you face recurring challenges that slow delivery, increase cost, and put reliability at risk:
 
-=== Configuration Drift
+* **Configuration drift** — Systems gradually change from intended state, creating inconsistencies
+* **Risky updates** — Traditional in-place updates can break systems and are difficult to recover from remotely
+* **Disconnected operations** — Many edge sites lack reliable connectivity, preventing on-demand updates
+* **Resource constraints** — Edge hardware is small, rugged, and cost-sensitive (typically 2 CPU + 2 GB RAM)
+* **Lifecycle management complexity** — Managing dozens or hundreds of edge sites multiplies every operational issue
 
-==== The Pain
-Systems gradually change from the intended state—especially without expert hands on site.
+ManufacturingCo needs a repeatable way to build, deploy, update, and operate self-contained edge appliances—without depending on network connectivity or highly skilled IT staff at each field site. This challenge is common across edge deployments.
 
-==== The Impact
-* Fleet becomes inconsistent and unpredictable
-* Patch gaps create vulnerabilities
-* Troubleshooting is slow and error-prone
-* Compliance and audit checks become harder
-
-=== Risky Updates
-
-==== The Pain
-Traditional in-place updates can break systems and are difficult to recover from remotely.
-
-==== The Impact
-* Outages or degraded services during failed updates
-* Costly “truck rolls” for onsite recovery
-* Higher risk of corruption or service disruption
-* Rollbacks are slow—or impossible
-
-=== Disconnected Operations
-
-==== The Pain
-Many edge sites lack reliable connectivity—or any connection at all.
-
-==== The Impact
-* Systems cannot pull images or packages on demand
-* Security and feature updates get delayed
-* USB / sneakernet workflows become the norm
-* This slows down scale and standardization
-
-=== Resource Constraints
-
-==== The Pain
-Edge hardware is small, rugged, and cost-sensitive.
-
-==== The Impact
-* Typical footprint: 2 CPU + 2 GB RAM
-* Resource-heavy platforms don’t fit
-* Full Kubernetes clusters overwhelm devices
-* Higher hardware costs if footprint isn’t optimized
-
-=== Lifecycle Management Complexity
-
-==== The Pain
-Managing dozens—or hundreds—of edge sites multiplies every operational issue.
-
-==== The Impact
-* Slow deployment cycles across locations
-* Version sprawl across OS and applications
-* Build and config inconsistency between sites
-* Fleet operations become manual and reactive
+For detailed explanations of these challenges, see xref:module-01.adoc#edge_challenges[Module 1: Understanding Edge Appliance Challenges].
 
 [#solution]
 == The Solution: RHEL Image Mode + MicroShift
@@ -105,57 +49,15 @@ Managing dozens—or hundreds—of edge sites multiplies every operational issue
 
 Paired with **Red Hat build of MicroShift**, you get a lightweight Kubernetes platform that delivers a consistent, cloud-native experience on small-footprint edge devices.
 
-Together, they create a **self-contained, reliable edge appliance platform**.
+Together, they create a **self-contained, reliable edge appliance platform** that addresses the core challenges:
 
-=== How It Solves Configuration Drift
+* **Configuration drift** → Eliminated through immutable, versioned images
+* **Risky updates** → Solved with atomic A/B boot and instant rollback
+* **Disconnected operations** → Enabled by embedding OS, MicroShift, and applications directly into bootable images
+* **Resource constraints** → Addressed with MicroShift, a lightweight Kubernetes platform optimized for small-footprint devices
+* **Lifecycle management** → Simplified through standard container workflows and Git-like versioning
 
-==== The Solution
-Every system boots from the same golden image that contains OS + apps.
-
-==== The Outcome
-* Consistent behavior across sites
-* Easier troubleshooting
-* Predictable compliance
-
-=== How It Solves Risky Updates
-
-==== The Solution
-Atomic updates with A/B boot and instant rollback.
-
-==== The Outcome
-* Safe upgrades with fast recovery
-* No need for on-site IT support
-* Greatly reduced outage risk
-
-=== How It Solves Disconnected Operations
-
-==== The Solution
-Embed OS, MicroShift, and applications directly into the bootable image—no network required.
-
-==== The Outcome
-* Works fully offline
-* Deploy via USB/ISO or sneakernet
-* No runtime registry dependency
-
-=== How It Solves Resource Constraints
-
-==== The Solution
-MicroShift provides Kubernetes derived from OpenShift—optimized for tiny edge systems.
-
-==== The Outcome
-* Runs cloud-native apps on minimal hardware
-* Delivers enterprise-grade workload orchestration
-* Maintains OpenShift compatibility
-
-=== How It Solves Lifecycle Management
-
-==== The Solution
-Build, test, ship, and manage appliances using standard container workflows.
-
-==== The Outcome
-* Days instead of weeks for updates
-* Git-like versioning for the full stack
-* Simple fleet-wide lifecycle control
+For detailed explanations of how RHEL Image Mode addresses these challenges, see xref:module-01.adoc#bootc_solution[Module 1: How RHEL Image Mode Addresses These Challenges].
 
 [NOTE]
 ====
