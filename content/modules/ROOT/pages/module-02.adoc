@@ -500,14 +500,14 @@ Before proceeding, verify that both images were built successfully and the ISO i
 +
 [source,sh,role=execute]
 ----
-sudo podman images | grep microshift-bootc:base
+sudo podman images | grep microshift-bootc
 ----
 
 . Verify the 4.19 appliance image exists:
 +
 [source,sh,role=execute]
 ----
-sudo podman images | grep microshift-bootc-embeeded:4.19
+sudo podman images | grep microshift-bootc-embeeded
 ----
 
 . Confirm the ISO file was created:
