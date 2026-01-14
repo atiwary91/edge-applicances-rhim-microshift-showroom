@@ -91,21 +91,22 @@ As introduced in the xref:index.adoc#solution[workshop overview], RHEL Image Mod
 
 === Current State vs. Desired State
 
-**Traditional State**
-
+[cols="1,1"]
+|===
+| *Traditional State*
 * Manual or scripted OS build/configuration
 * Drift grows with every one-off patch
 * Updates are risky and slow to recover
 * Connectivity required for OS + registry pulls
 * Difficult provenance and version tracking
 
-**Desired State (Image Mode)**
-
+| *Desired State (Image Mode)*
 * Immutable, versioned OS image
 * Each system boots from a known-good source
 * Atomic updates with instant rollback
 * Works online, offline, or air-gapped
 * Predictable, repeatable builds every time
+|===
 
 === How RHEL Image Mode Solves These Challenges
 
