@@ -94,6 +94,7 @@ As introduced in the xref:index.adoc#solution[workshop overview], RHEL Image Mod
 [cols="1,1"]
 |===
 | *Traditional State*
+
 * Manual or scripted OS build/configuration
 * Drift grows with every one-off patch
 * Updates are risky and slow to recover
@@ -101,6 +102,7 @@ As introduced in the xref:index.adoc#solution[workshop overview], RHEL Image Mod
 * Difficult provenance and version tracking
 
 | *Desired State (Image Mode)*
+d
 * Immutable, versioned OS image
 * Each system boots from a known-good source
 * Atomic updates with instant rollback
