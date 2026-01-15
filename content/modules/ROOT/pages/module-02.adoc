@@ -45,6 +45,7 @@ The `Containerfile` is the **Source of Truth** for the entire appliance. It tran
 
 
 **What the Containerfile Defines:**
+
 * **Base OS:** The specific RHEL version (EUS).
 * **MicroShift:** The core orchestration and required packages.
 * **System Config:** Hardened firewall and security settings.
@@ -169,10 +170,11 @@ The goal of physical embedding is to ensure MicroShift can run workloads without
 **Helper Scripts Provided:**
 
 * `embed_image.sh`: Pulls specified container images and their digests into the OS image during the build process.
+
 [source,bash]
 ----
-RUN skopeo copy --preserve-digests docker://image \
-    dir:/usr/lib/containers-image-cache/app
+RUN skopeo copy --preserve-digests docker://${image} \
+    dir:/usr/lib/containers/storage/${sha}
 ----
 
 * `copy_embedded_images.sh`: Triggered at boot, this script populates the runtime container store from the immutable `/usr/lib` cache, making images "already present" for MicroShift.
@@ -180,8 +182,8 @@ RUN skopeo copy --preserve-digests docker://image \
 [source,bash]
 ----
 /usr/bin/skopeo copy --preserve-digests \
-  dir:/usr/lib/containers-image-cache/app \
-  containers-storage:registry/image@sha256:<digest>
+  dir:/usr/lib/containers/storage/${sha} \
+  containers-storage:${image}
 ----
 
 Upstream reference patterns: link:https://gitlab.com/fedora/bootc/examples/-/tree/main/physically-bound-images[Fedora examples^].

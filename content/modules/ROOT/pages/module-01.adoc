@@ -74,6 +74,7 @@ Inconsistent environments amplify the core challenges of appliance management:
 [NOTE]
 ====
 **Industry Examples:**
+
 * **Manufacturing:** quality monitoring systems facing long deployment cycles and update failure rates.
 * **Telecom:** network edge appliances for 5G base stations requiring rapid deployment.
 * **Energy:** industrial IoT gateways for remote oil & gas monitoring.
@@ -180,7 +181,7 @@ ls -la
 pwd
 ----
 +
-_Expected:_ `/home/lab-user/bootc-embeeded-containers_
+Expected: `/home/lab-user/bootc-embeeded-containers`
 
 . **Confirm Toolset:**
 +
