@@ -59,6 +59,8 @@ Together, they create a **self-contained, reliable edge appliance platform** tha
 
 For detailed explanations of how RHEL Image Mode addresses these challenges, see xref:module-01.adoc#bootc_solution[Module 1: How RHEL Image Mode Addresses These Challenges].
 
+image::rhim-solution.jpg[RHEL Image Mode,100%,100%]
+
 [NOTE]
 ====
 Image Mode evolved from link:https://www.redhat.com/en/blog/red-hat-device-edge-rpm-ostree-updates[rpm-ostree^], a proven architecture for edge and appliance operations.  
