@@ -366,7 +366,8 @@ The pods will start up and show `Running` after a short time.
 [source,sh,role=execute]
 ----
 oc get pods -n example-apps-wordpress
-oc get route
+oc get route -n example-apps-wordpress
+
 ----
 
 . Test the WordPress route:
