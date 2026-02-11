@@ -340,7 +340,7 @@ ssh centos@<vm-ip>
 cat /etc/os-release
 ----
 
-. Verify reversion:
+. Verify the update:
 +
 [source,sh,role=execute]
 ----
@@ -366,8 +366,11 @@ The pods will start up and show `Running` after a short time.
 [source,sh,role=execute]
 ----
 oc get pods -n example-apps-wordpress
+----
++
+[source,sh,role=execute]
+----
 oc get route -n example-apps-wordpress
-
 ----
 
 . Test the WordPress route:
@@ -376,8 +379,6 @@ oc get route -n example-apps-wordpress
 ----
 curl wordpress.apps.example.com
 ----
-
-
 
 [#rollback]
 == 4.4 Show: Demonstrate Rollback Capability
@@ -389,21 +390,24 @@ Rollback provides an instant safety net with zero data loss and no need for fiel
 +
 [source,sh,role=execute]
 ----
-sudo bootc status  
+sudo bootc status
 ----
+
+. Initiate the rollback:
 +
 [source,sh,role=execute]
 ----
 sudo bootc rollback
 ----
 
+. Reboot to apply the rollback:
 +
 [source,sh,role=execute]
 ----
 sudo reboot
 ----
 
-. Re-connect and Verify
+. Re-connect and verify:
 +
 [source,sh,role=execute]
 ----
@@ -421,11 +425,13 @@ cat /etc/os-release
 +
 [source,sh,role=execute]
 ----
-sudo bootc status  
+sudo bootc status
+----
++
+[source,sh,role=execute]
+----
 microshift version
 ----
-
-
 
 [IMPORTANT]
 ====

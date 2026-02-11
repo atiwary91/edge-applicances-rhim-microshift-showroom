@@ -261,7 +261,7 @@ watch sudo virsh domifaddr microshift-workshop
 +
 The output will show the IP address assigned to the VM. Note the IP address (for example, `192.168.100.X`).
 
-. Once we see the ip assigned to the VM. CTRL+C exit the watch.
+. Once we see the IP assigned to the VM, press CTRL+C to exit the watch.
 
 . Connect to the VM via SSH using the IP address:
 +
@@ -284,7 +284,8 @@ The default user is `centos` with password `bootc`. You should see a message ind
 sudo bootc status
 ----
 
-# Verify OS version changed to CentOS 10
+. Verify OS version:
++
 [source,sh,role=execute]
 ----
 cat /etc/os-release
@@ -296,7 +297,6 @@ cat /etc/os-release
 ----
 watch -n 2 sudo systemctl status microshift-embed
 ----
-
 +
 [NOTE]
 ====
@@ -306,7 +306,6 @@ Take a look at the service status. It is importing images from `/usr` to contain
 . Press CTRL+C to exit the watch once the service shows "Active".
 
 . Now check the MicroShift service:
-
 +
 [source,sh,role=execute]
 ----
@@ -362,15 +361,25 @@ If you see **"Successfully pulled"**, the system used the internet. If you see *
 
 === Exploring Application Manifests (Optional)
 To see how MicroShift manages the embedded workloads:
+
+. List the manifest files:
++
 [source,sh,role=execute]
 ----
 ls /usr/lib/microshift/manifests.d/001-test-app/
 ----
 
+. Check the route:
++
 [source,sh,role=execute]
 ----
 oc get route
+----
 
+. Test the application:
++
+[source,sh,role=execute]
+----
 curl hello-route-default.apps.example.com
 ----
 

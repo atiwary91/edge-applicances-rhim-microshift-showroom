@@ -14,7 +14,7 @@ By the end of this module, you will be able to:
 * [x] Explain why embedded images live under `/usr` instead of `/var`
 * [x] Build a MicroShift-enabled base image
 * [x] Build a self-contained appliance with embedded workloads
-* [x] Generate a bootable ISO using `bootc-image-builder`
+* [x] Generate a bootable disk image using `bootc-image-builder`
 
 [#know_section]
 [#containerfile]
@@ -288,8 +288,32 @@ time sudo podman run --rm -it --privileged \
 +
 This generates a QCOW2 disk image in `./output/qcow2/disk.qcow2` that can be booted directly.
 
+[NOTE]
+====
+**Why QCOW2 for this workshop?**
+
+To save time and simulate an air-gapped edge environment, we use KVM with an isolated network and boot directly from a QCOW2 disk image.
+
+However, `bootc-image-builder` supports multiple output formats for different deployment scenarios:
+
+[cols="1,2", options="header"]
+|===
+| Image Type | Use Case
+
+| **RAW (*.raw)** | Direct disk writes, bare metal provisioning
+| **QCOW2 (*.qcow2)** | KVM/libvirt virtualization, lab environments
+| **ISO (*.iso)** | USB drives, PXE boot, traditional installations
+| **VMDK (*.vmdk)** | VMware vSphere environments
+| **AMI (*.ami)** | Amazon Web Services EC2
+| **VHD (*.vhd)** | Microsoft Azure, Hyper-V
+| **GCE (*.gce)** | Google Cloud Platform
+|===
+
+Choose the format that matches your target infrastructure. The appliance image stays the same—only the output format changes.
+====
+
 [#validation]
-== 2.5 Validation: Success Criteria
+== 2.4 Validation: Success Criteria
 
 [cols="1,3", options="header"]
 |===

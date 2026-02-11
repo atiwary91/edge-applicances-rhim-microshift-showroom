@@ -28,19 +28,9 @@ image::ManufacturingCo-challenges.jpg[ManufacturingCo challenges,100%,100%]
 When presenting to real customers, adjust these metrics to match their business, environment, and benchmarks.
 ====
 
-=== Common Edge Challenges
+ManufacturingCo needs a repeatable way to build, deploy, update, and operate self-contained edge appliances—without depending on network connectivity or highly skilled IT staff at each field site.
 
-If you build or manage appliances in the field—especially across remote or disconnected sites—you face recurring challenges that slow delivery, increase cost, and put reliability at risk:
-
-* **Configuration drift** — Systems gradually change from intended state, creating inconsistencies
-* **Risky updates** — Traditional in-place updates can break systems and are difficult to recover from remotely
-* **Disconnected operations** — Many edge sites lack reliable connectivity, preventing on-demand updates
-* **Resource constraints** — Edge hardware is small, rugged, and cost-sensitive (typically 2 CPU + 2 GB RAM)
-* **Lifecycle management complexity** — Managing dozens or hundreds of edge sites multiplies every operational issue
-
-ManufacturingCo needs a repeatable way to build, deploy, update, and operate self-contained edge appliances—without depending on network connectivity or highly skilled IT staff at each field site. This challenge is common across edge deployments.
-
-For detailed explanations of these challenges, see xref:module-01.adoc#edge_challenges[Module 1: Understanding Edge Appliance Challenges].
+For a deeper dive into edge computing constraints and challenges, see xref:module-01.adoc#edge_challenges[Module 1: Understanding Edge Appliance Challenges].
 
 [#solution]
 == The solution: bootc + MicroShift
@@ -49,13 +39,7 @@ For detailed explanations of these challenges, see xref:module-01.adoc#edge_chal
 
 **MicroShift** is a smaller Kubernetes that runs well on edge devices. Together, bootc + MicroShift give you a consistent way to run apps on small hardware.
 
-Together, they create a **self-contained, reliable edge appliance platform** that addresses the core challenges:
-
-* **Configuration drift** → Reduced because systems come from the same versioned image
-* **Risky updates** → Safer with A/B boot (two slots) and quick rollback
-* **Disconnected operations** → Works offline by embedding OS, MicroShift, and apps in the image
-* **Resource constraints** → Addressed with MicroShift, which is lightweight for small devices
-* **Lifecycle management** → Simpler versioning and repeatable builds
+Together, they create a **self-contained, reliable edge appliance platform**—addressing configuration drift, risky updates, disconnected operations, resource constraints, and lifecycle management complexity.
 
 For detailed explanations of how bootc addresses these challenges, see xref:module-01.adoc#bootc_solution[Module 1: How bootc Addresses These Challenges].
 
